@@ -26,26 +26,39 @@
     (->Almanac seeds seed-to-soil soil-to-fertilizer fertilizer-to-water water-to-light light-to-temperature temperature-to-humidity humidity-to-location)))
 
 
-(defn corresponds-to-row [sourcevalue row]
-  
-  )
-
 (defn corresponds-to [sourcevalue alm-maps]
-  (println "Fabriksfabrikören: " alm-maps)
-  (println (filter #(<= (:source %) sourcevalue (+ (:source %) (- (:range %) 1))) alm-maps))
-  (let [match (first (filter #(<= (:source %) sourcevalue (+ (:range %) (- (:range %) 1))) alm-maps))]
+  (let [match (first (filter #(<= (:source %) sourcevalue (+ (:source %) (- (:range %) 1))) alm-maps))]
     (if (nil? match)
       sourcevalue
-      (:destination match))))
+      (+ (:destination match) (- sourcevalue (:source match))))))
   
+(defn seed-to-location [seed almanac]
+  (->
+   (corresponds-to seed (:seed-to-soil almanac))
+   (corresponds-to (:soil-to-fertilizer almanac))
+   (corresponds-to (:fertilizer-to-water almanac))
+   (corresponds-to (:water-to-light almanac))
+   (corresponds-to (:light-to-temperature almanac))
+   (corresponds-to (:temperature-to-humidity almanac))
+   (corresponds-to (:humidity-to-location almanac))))
 
 (defn part-1
   " Day 05 Part 1 "
   [input]
   (let [almanac (parse-almanac input)]
-    (corresponds-to 98 (:seed-to-soil almanac))))
+    (->>
+     (:seeds almanac)
+     (map #(seed-to-location % almanac))
+     (apply min))))
 
 (defn part-2
   "Day 05 Part 2"
   [input]
-  input)
+  (let [almanac (parse-almanac input)
+        seedgroups (partition 2 (:seeds almanac))
+        minrange (apply min (map first seedgroups))
+        maxrange (apply max (map #(+ (first %) (second %)) seedgroups))]
+    (->>
+     (range minrange maxrange)
+     (map #(seed-to-location % almanac))
+     (apply min))))
