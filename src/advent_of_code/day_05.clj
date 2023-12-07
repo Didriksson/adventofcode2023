@@ -31,7 +31,7 @@
     (if (nil? match)
       sourcevalue
       (+ (:destination match) (- sourcevalue (:source match))))))
-  
+
 (defn seed-to-location [seed almanac]
   (->
    (corresponds-to seed (:seed-to-soil almanac))
@@ -42,6 +42,23 @@
    (corresponds-to (:temperature-to-humidity almanac))
    (corresponds-to (:humidity-to-location almanac))))
 
+
+(defn corresponds-to-location [destination alm-maps]
+  (let [match (first (filter #(<= (:destination %) destination (+ (:destination %) (- (:range %) 1))) alm-maps))]
+    (if (nil? match)
+      destination
+      (+ (:source match) (- destination (:destination match))))))
+
+(defn location-to-seed [location almanac]
+  (->
+   (corresponds-to-location location (:humidity-to-location almanac))
+   (corresponds-to-location (:temperature-to-humidity almanac))
+   (corresponds-to-location (:light-to-temperature almanac))
+   (corresponds-to-location (:water-to-light almanac))
+   (corresponds-to-location (:fertilizer-to-water almanac))
+   (corresponds-to-location (:soil-to-fertilizer almanac))
+   (corresponds-to-location (:seed-to-soil almanac))))
+
 (defn part-1
   " Day 05 Part 1 "
   [input]
@@ -51,14 +68,25 @@
      (map #(seed-to-location % almanac))
      (apply min))))
 
+(defn inRange [val rangecol]
+  (<= (first rangecol) val (+ (second rangecol) (- (first rangecol) 1))))
+
+(defn inRangeForAny [val ranges] 
+  (some #(inRange val %) ranges))
+
+(defn check-seed-for-location [location almanac]
+  (let
+   [seed (location-to-seed location almanac)]
+    [location seed]))
+
 (defn part-2
   "Day 05 Part 2"
   [input]
-  (let [almanac (parse-almanac input)
-        seedgroups (partition 2 (:seeds almanac))
-        minrange (apply min (map first seedgroups))
-        maxrange (apply max (map #(+ (first %) (second %)) seedgroups))]
-    (->>
-     (range minrange maxrange)
-     (map #(seed-to-location % almanac))
-     (apply min))))
+  (time (let [almanac (parse-almanac input)
+              seedgroups (partition 2 (:seeds almanac))]
+          (->>
+           (range)
+           (map #(check-seed-for-location % almanac))
+           (filter #(inRangeForAny (second %) seedgroups))
+           (first)
+           (first)))))
