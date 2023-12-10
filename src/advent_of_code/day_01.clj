@@ -4,7 +4,6 @@
 (defn digit? [c]
   (. Character isDigit c))
 
-
 (defn parseLines [input]
   (str/split input #"\r\n"))
 

@@ -5,7 +5,8 @@
   (. Character isDigit c))
 
 (defn parse-number-groups-for-row [x-offset index-y row]
-  (let [digits (take-while #(digit? (:value %)) (map-indexed (fn [index item] {:x (+ x-offset index) :y index-y :value item}) row))
+  (let [digits (take-while #(digit? (:value %)) (map-indexed (fn [index item] 
+                                                               {:x (+ x-offset index) :y index-y :value item}) row))
         toRemove (if (empty? digits)
                    (count (take-while #(not (digit? %)) row))
                    (count digits))
