@@ -1,5 +1,6 @@
 (ns advent-of-code.day-08
-  (:require [clojure.string :as str]))
+  (:require [clojure.set :as set]
+            [clojure.string :as str]))
 
 
 (defrecord Step [node lv rv])
@@ -33,17 +34,14 @@
 (defn find-start-nodes [steps]
   (filter #(= (last %) \A) (map :node steps)))
 
-(defn find-all-z [state numberofsteps]  
-  (if (every? isAtZ (:current state))
+(defn find-loop-for [instructions current-node steps numberofsteps]
+  (if (isAtZ current-node)
     numberofsteps
-    (let [instructions (:instructions state)
-          finstruction (first instructions)
+    (let [finstruction (first instructions)
           restinstruciton (clojure.string/join (rest instructions))
           cyclesinstructions (str restinstruciton finstruction)
-          next-nodes (map #(find-next-node finstruction % (:steps state)) (:current state))]
-      (if (some #{next-nodes} (:visited state))
-        (println next-nodes " BOOM BOOM " (:visited state))
-        (recur (->State cyclesinstructions next-nodes (:steps state) (cons next-nodes (:visited state))) (inc numberofsteps))))))
+          next-node (find-next-node finstruction current-node steps)]
+      (recur cyclesinstructions next-node steps (inc numberofsteps)))))
 
 (defn part-1
   "Day 08 Part 1"
@@ -53,12 +51,23 @@
         state (->State instructions ["AAA"] steps [])]
     (find-zzz state 0)))
 
+(defn divisors [n]
+  (filter #(zero? (rem n %)) (range 2 (inc n))))
+
+(defn lowest-divisor [n]
+  (first (divisors n)))
+
+
+(defn find-gcd [loops]
+  (first (apply set/intersection (map set (map divisors loops)))))
 
 
 (defn part-2
   "Day 08 Part 2"
   [input]
   (let [[instructions elements] (str/split input #"\r\n\r\n")
-        steps (map parse-step (str/split elements #"\r\n"))
-        state (->State instructions (find-start-nodes steps) steps [(find-start-nodes steps)])]
-    (find-all-z state 0)))
+        steps (mapv parse-step (str/split elements #"\r\n"))
+        startnodes (find-start-nodes steps)
+        loops (map #(find-loop-for instructions % steps 0) startnodes)
+        gcd (find-gcd loops)]
+    (* gcd (reduce * (map lowest-divisor loops)))))
