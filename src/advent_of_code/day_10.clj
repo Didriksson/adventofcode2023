@@ -52,26 +52,26 @@
   [(+ x dx) (+ y dy)])
 
 (defn perform-eval-for-point [point visited sketch]
+  (println point)
   (->>
    (eval-adjacents (first point) (second point) sketch)
    (mapv #(create-position (first point) (second point) (first %) (second %)))
    (filter #(nil? (some #{%} visited)))))
 
-(defn find-paths [path sketch]
+(defn find-paths [paths sketch]
   (let
-   [point (:point path)
-    visited (:visited path)
-    new-points (perform-eval-for-point point visited sketch)]
-    (if (empty? new-points)
-      path
-      (mapv #(find-paths (->Path % (conj visited %)) sketch) new-points))))
+   [new-points (mapcat #(perform-eval-for-point (:point %) (:visited %) sketch) paths)
+    updated-visited (mapv #(->Path % (conj (:visited %)))  new-points)]
+    (if (empty? updated-visited)
+      paths
+      (recur updated-visited sketch))))
 
 (defn part-1
   "Day 10 Part 1"
   [input]
   (let [sketch (str/split-lines input)
         start (get-start-position sketch)
-        evalutae-paths (find-paths (->Path [(:x start) (:y start)] (cons [(:x start) (:y start)] []))  sketch)]
+        evalutae-paths (find-paths [(->Path [(:x start) (:y start)] (cons [(:x start) (:y start)] []))]  sketch)]
     (->>
      (flatten evalutae-paths)
      (map :visited)
