@@ -1,9 +1,10 @@
 (ns advent-of-code.day-10
-  (:require [clojure.set :refer [union]]
+  (:require [clojure.set :refer [difference]]
             [clojure.string :as str]))
 
 
 (defrecord Path [point visited])
+(defrecord Point [x y])
 
 (defn get-for-position [x y sketch]
   (nth (nth sketch y) x))
@@ -38,7 +39,7 @@
     \J [[0  -1] [-1 0]]
     \7 [[0   1] [-1 0]]
     \F [[0   1] [1 0]]
-    \. []
+    \. [[1 0] [-1 0] [0 -1] [0 1]]
     \S [[1 0] [-1 0] [0 -1] [0 1]]))
 
 (defn eval-adjacents [x y sketch]
@@ -82,23 +83,50 @@
    (apply max)
    (#(/ % 2))))
 
-(defn potential-positions [[x y] max-x max-y]
-  (into #{}
-        (filter #(and
-                  (<= 0 (first %) (dec max-x))
-                  (<= 0 (second %) (dec max-y)))
-                #{[(+ x 1), y] [(- x 1), y] [x, (+ y 1)] [x, (- y 1)]})))
-        
 
-(defn parse-blocks [to-parse parsed max-x max-y]
+(defn transform-point [point]
+  (let [potential #{[1 0] [-1 0] [0 -1] [0 1]}]
+    (map #(vector (+ (first point) (first %)) (+ (second point) (second %))) potential)))
+
+(defn parse-block-path [to-parse visited sketch]
   (if (empty? to-parse)
-    parsed
-    (let [item (first to-parse)
-          found-block (first (keep-indexed (fn [idx potential] (when (some? (some (potential-positions item max-x max-y) potential)) idx)) parsed))
-          updated-block-list (if (nil? found-block)
-                               (conj parsed #{item})
-                               (update-in parsed [found-block] conj item))]
-      (recur (rest to-parse) updated-block-list max-x max-y))))
+    visited
+    (let [max-y (count sketch)
+          max-x (count (first sketch))
+          potential (filter #(and (<= 0 (first %) (- max-x 1)) (<= 0 (second %) (- max-y 1))) (mapcat transform-point to-parse))
+          filtered-non-visited (filter #(nil? (some #{%} visited)) potential)
+          tiles (filter #(= (get-for-position (first %) (second %) sketch) \.) filtered-non-visited)
+          updated-visited (concat visited tiles)]
+      (recur tiles updated-visited sketch))))
+
+
+(defn atEdge [item sketch]
+  (let [max-y (count sketch)
+        max-x (count (first sketch))]
+    (or
+     (= 0 (first item))
+     (= 0 (second item))
+     (= (dec max-x) (first item))
+     (= (dec max-y) (second item)))))
+
+
+(defn isEnclosed [block sketch]
+  (not (some? (first (filter #(atEdge % sketch) block)))))
+
+
+(defn parse-all-tile-blocks [tiles sketch]
+  (let [point-tiles (map #(->Point (first %) (second %)) tiles)]
+    (loop [all-paths []]
+      (let [start (first (difference (set point-tiles) (set (flatten all-paths))))]
+        (if (nil? start)
+          all-paths
+          (recur (conj all-paths (map #(->Point (first %) (second %)) (parse-block-path [(vector (:x start) (:y start))] [(vector (:x start) (:y start))] sketch)))))))))
+
+
+
+
+(defn block-to-point [row]
+  (map #(vector (:x %) (:y %)) row))
 
 (defn part-2
   "Day 10 Part 2"
@@ -106,8 +134,13 @@
   (let [loopen (->> (get-loop input)
                     (apply max-key count))
         sketch (str/split-lines input)
-        tiles   (set (for [[y row] (map-indexed list sketch)
-                           [x cell] (map-indexed list row)
-                           :when (= \. cell)]
-                       [x y]))]
-    (parse-blocks (sort-by first tiles) [#{[8 9]}] (count (first sketch)) (count sketch))))
+        tiles   (for [[y row] (map-indexed list sketch)
+                      [x cell] (map-indexed list row)
+                      :when (= \. cell)]
+                  [x y])]
+    (->>
+     (parse-all-tile-blocks tiles sketch)
+     (map block-to-point)
+     (filter #(isEnclosed % sketch))
+     (map count)
+     (reduce +))))
