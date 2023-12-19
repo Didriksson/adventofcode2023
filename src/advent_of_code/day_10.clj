@@ -88,7 +88,7 @@
                   (<= 0 (first %) (dec max-x))
                   (<= 0 (second %) (dec max-y)))
                 #{[(+ x 1), y] [(- x 1), y] [x, (+ y 1)] [x, (- y 1)]})))
-        
+
 
 (defn parse-blocks [to-parse parsed max-x max-y]
   (if (empty? to-parse)
@@ -100,14 +100,43 @@
                                (update-in parsed [found-block] conj item))]
       (recur (rest to-parse) updated-block-list max-x max-y))))
 
+(defn angle-between-points [x1 y1 x2 y2]
+  (let [delta-x (- x2 x1)
+        delta-y (- y2 y1)]
+    (Math/atan2 delta-y delta-x)))
+
+(defn to-degrees [r]
+  (* r (/ 180.0 Math/PI)))
+
+(defn is-sum-of-angles-multiple-of-2pi [p loop]
+  (let [anglesum (to-degrees (reduce + (map #(Math/abs %) (map #(angle-between-points (first p) (second p) (first %) (second %)) loop))))]
+    [p (rem anglesum 360)]))
+
+(defn picks-theorem [boundarypoints area]
+  (+
+   (- area (/ boundarypoints 2.0))
+   1))
+
+(defn shoelace [pairs]
+  (- (* (first (first pairs)) (second (second pairs)))
+     (* (second (first pairs)) (first (second pairs)))))
+
+(defn shoelace-formula [points] 
+  (let [area 
+        (+
+         (shoelace (list (last points) (first points)))
+         (reduce + (map shoelace (partition 2 1 points))))]
+    (/ (Math/abs area) 2)))
+
+
+
 (defn part-2
   "Day 10 Part 2"
   [input]
-  (let [loopen (->> (get-loop input)
-                    (apply max-key count))
-        sketch (str/split-lines input)
-        tiles   (set (for [[y row] (map-indexed list sketch)
-                           [x cell] (map-indexed list row)
-                           :when (= \. cell)]
-                       [x y]))]
-    (parse-blocks (sort-by first tiles) [#{[8 9]}] (count (first sketch)) (count sketch))))
+  (let [loop (first (get-loop input))
+        boundarypoints (->>
+                        (get-loop input)
+                        (map count)
+                        (apply max))
+        area (shoelace-formula loop)]
+    (int (picks-theorem boundarypoints area))))
